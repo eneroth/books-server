@@ -1,1 +1,1 @@
-web: java $JVM_OPTS -jar target/server.jar $PORT
+web: java $JVM_OPTS -jar target/server.jar -m server.core $PORT
