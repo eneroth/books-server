@@ -67,11 +67,11 @@
 (defn your-handler [req]
   (with-channel 
     req ws-ch
-    
+    (println "Setting up channels…")
     (let [websocket-channel (map< message-to-record ws-ch)
           websocket-channel (map> record-to-message websocket-channel)
           [search-channel other-channel] (split #(has-type % :search) websocket-channel)]
-      
+      (println "Channels set up.")
       (comment (go-loop
                  []
                  (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
