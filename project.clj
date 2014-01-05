@@ -13,4 +13,6 @@
                  [org.clojure/data.fressian "0.2.0"]
                  [org.clojars.freeagent/clj-amazon "0.2.2-SNAPSHOT"]
                  [org.clojure/core.async "0.1.267.0-0d7780-alpha"]]
-  :main ^{:skip-aot true} server.core)
+  :uberjar-name "server.jar"
+  :aot [server.core]
+  :main server.core)
