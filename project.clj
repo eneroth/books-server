@@ -15,6 +15,4 @@
                  [org.clojars.freeagent/clj-amazon "0.2.2-SNAPSHOT"]
                  [org.clojure/core.async "0.1.267.0-0d7780-alpha"]]
   :uberjar-name "server.jar"
-  :aot [server.core]
-  :main server.core
   :profiles {:uberjar {:main server.core, :aot :all}})
