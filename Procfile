@@ -1,1 +1,1 @@
-web: lein with-profile uberjar trampoline run -m server.core $PORT
+web: java $JVM_OPTS -jar target/server.jar $PORT

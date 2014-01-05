@@ -104,5 +104,5 @@
 
 (defn -main
   [port & args]
-  (println "'" port "'")
+  (println "Starting on port" port)
   (httpkit/run-server your-handler {:port (or (read-string port) 5000)}))
