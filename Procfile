@@ -1,1 +1,1 @@
-web: lein with-profile uberjar trampoline run -m server.core
+web: lein with-profile uberjar trampoline run -m server.core $PORT

@@ -103,5 +103,6 @@
       )))
 
 (defn -main
-  [& args]
-  (httpkit/run-server your-handler {:port 1111}))
+  [port & args]
+  (println "'" port "'")
+  (httpkit/run-server your-handler {:port (or (read-string port) 5000)}))
