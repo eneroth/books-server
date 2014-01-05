@@ -1,1 +1,1 @@
-web: java $JVM_OPTS -jar target/server.jar
+web: lein with-profile uberjar trampoline run -m server.core
