@@ -63,8 +63,13 @@
   [record]
   (-> record vals vec pr-str))
 
+(defn map-hash-map [f m]
+  (into {} (for [[k v] m] [(f k) v])))
+
 ;; Handler
 (defn your-handler [req]
+  (println "Handler starting…")
+  (pprint/pprint (map-hash-map keyword (:headers req)))
   (with-channel 
     req ws-ch
     (println "Setting up channels…")
@@ -72,6 +77,7 @@
           websocket-channel (map> record-to-message websocket-channel)
           [search-channel other-channel] (split #(has-type % :search) websocket-channel)]
       (println "Channels set up.")
+      
       (comment (go-loop
                  []
                  (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
@@ -103,6 +109,16 @@
       )))
 
 (defn -main
-  [port & args]
-  (println "Starting on port" port)
-  (httpkit/run-server your-handler {:port (or (read-string port) 5000)}))
+  [& args]
+  (let [first-arg (first args)
+        port      (if first-arg (read-string first-arg) 5000)]
+    (println "Starting on port" port)
+    (println "Waiting for connection…")
+    (httpkit/run-server your-handler {:port port})))
+
+
+
+
+
+
+
