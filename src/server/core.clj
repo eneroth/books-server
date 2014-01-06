@@ -68,11 +68,13 @@
 
 ;; Handler
 (defn your-handler [req]
-  (println "Handler starting…")
-  (pprint/pprint (map-hash-map keyword (:headers req)))
+  (let [headers (map-hash-map keyword (:headers req))]
+  (println "Received request from" (:x-forwarded-for headers))
+  (println "User agent" (:user-agent headers))
+  (println "Handler starting..."))
   (with-channel 
     req ws-ch
-    (println "Setting up channels…")
+    (println "Setting up channels...")
     (let [websocket-channel (map< message-to-record ws-ch)
           websocket-channel (map> record-to-message websocket-channel)
           [search-channel other-channel] (split #(has-type % :search) websocket-channel)]
@@ -113,7 +115,7 @@
   (let [first-arg (first args)
         port      (if first-arg (read-string first-arg) 5000)]
     (println "Starting on port" port)
-    (println "Waiting for connection…")
+    (println "Waiting for connection...")
     (httpkit/run-server your-handler {:port port})))
 
 
