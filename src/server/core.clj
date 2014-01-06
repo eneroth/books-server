@@ -80,11 +80,11 @@
           [search-channel other-channel] (split #(has-type % :search) websocket-channel)]
       (println "Channels set up.")
       
-      (comment (go-loop
-                 []
-                 (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
-                 (Thread/sleep 2000)
-                 (recur)))
+      (go-loop
+        []
+        (Thread/sleep 50000)
+        (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
+        (recur))
       
       (go-loop
         []
