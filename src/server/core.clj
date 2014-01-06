@@ -82,7 +82,7 @@
       
       (go-loop
         []
-        (Thread/sleep 25000)
+        (Thread/sleep 45000)
         (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
         (recur))
       
