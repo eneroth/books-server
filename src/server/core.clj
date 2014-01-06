@@ -69,9 +69,9 @@
 ;; Handler
 (defn your-handler [req]
   (let [headers (map-hash-map keyword (:headers req))]
-  (println "Received request from" (:x-forwarded-for headers))
-  (println "User agent" (:user-agent headers))
-  (println "Handler starting..."))
+    (println "Received request from" (:x-forwarded-for headers))
+    (println "User agent" (:user-agent headers))
+    (println "Handler starting..."))
   (with-channel 
     req ws-ch
     (println "Setting up channels...")
