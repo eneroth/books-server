@@ -1,13 +1,14 @@
 (ns server.core
   (:gen-class)
   (:require [chord.http-kit :refer [with-channel]]
+            [ring.middleware.reload :refer [wrap-reload]]
             [server.channel-helpers :as h]
             [clj-amazon.core :as amazon-core]
             [clojure.string :as string]
             [clojure.pprint :as pprint]
             [clj-amazon.product-advertising :as amazon-pa]
             [clojure.core.async :refer [split filter< map< map> <! <!! >! >!! put! close! go go-loop]]
-            [server.helper :as helper :refer [?]]
+            [server.helper :as helper :refer [? start-nstracker]]
             [ring.middleware.reload :as reload]
             [org.httpkit.server :as httpkit]))
 (defrecord Message [type val])
@@ -67,7 +68,7 @@
   (into {} (for [[k v] m] [(f k) v])))
 
 ;; Handler
-(defn your-handler [req]
+(defn handler [req]
   (let [headers (map-hash-map keyword (:headers req))]
     (println "Received request from" (:x-forwarded-for headers))
     (println "User agent" (:user-agent headers))
@@ -116,7 +117,8 @@
         port      (if first-arg (read-string first-arg) 5000)]
     (println "Starting on port" port)
     (println "Waiting for connection...")
-    (httpkit/run-server your-handler {:port port})))
+    (start-nstracker)
+    (httpkit/run-server (wrap-reload handler) {:port port})))
 
 
 
