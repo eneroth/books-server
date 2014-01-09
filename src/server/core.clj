@@ -90,16 +90,18 @@
       (println "Channels set up.")
       
       ;; Message routing loop 
-      (go-loop []
-               (let [[message channel] (alts! [search-channel
-                                               heartbeat-channel
-                                               other-channel])]
-                 (when message 
-                   (condp = channel
-                     search-channel    (search-handler    message out-channel)
-                     heartbeat-channel (heartbeat-handler message out-channel)
-                     other-channel     (unknown-handler   message out-channel))
-                   (recur)))))))
+      (go-loop 
+        []
+        (let [[message channel] (alts! [search-channel
+                                        heartbeat-channel
+                                        other-channel])]
+          (when message 
+            (go 
+              (condp = channel
+                search-channel    (search-handler    message out-channel)
+                heartbeat-channel (heartbeat-handler message out-channel)
+                other-channel     (unknown-handler   message out-channel)))
+            (recur)))))))
 
 (defn -main
   [& args]
