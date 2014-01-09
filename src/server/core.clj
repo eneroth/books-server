@@ -63,6 +63,12 @@
     (>! out-channel (h/make-message :heartbeat "Sending server heartbeat"))))
 
 
+(defn unknown-handler
+  [message out-channel]
+  (let [message-type (-> message :type name str string/trim)]
+    (println (str "No handler defined for message type '" message-type "'"))
+    (pprint/pprint message)))
+
 ;; Handler
 (defn handler [req]
   (let [headers (h/string-keys-to-keywords keyword (:headers req))]
@@ -87,10 +93,9 @@
                                                other-channel])]
                  (when message 
                    (condp = channel
-                     search-channel    (search-handler message out-channel)
+                     search-channel    (search-handler    message out-channel)
                      heartbeat-channel (heartbeat-handler message out-channel)
-                     other-channel     (do (println "No handler defined for message type")
-                                         (pprint/pprint message)))
+                     other-channel     (unknown-handler   message out-channel))
                    (recur)))))))
 
 (defn -main
