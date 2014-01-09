@@ -7,7 +7,7 @@
             [clojure.string :as string]
             [clojure.pprint :as pprint]
             [clj-amazon.product-advertising :as amazon-pa]
-            [clojure.core.async :refer [split filter< map< map> <! <!! >! >!! put! close! go go-loop]]
+            [clojure.core.async :refer [alts! split filter< map< map> <! <!! >! >!! put! close! go go-loop]]
             [server.helper :as helper :refer [? start-nstracker]]
             [ring.middleware.reload :as reload]
             [org.httpkit.server :as httpkit]))
@@ -41,75 +41,57 @@
         results
         (recur (dec num) (conj results (rand-int 100)))))))
 
+(defn search-handler
+  [message out-channel]
+  (println message)
+  (println (str "Searching for '" (:val message) "'"))               
+  (let [search-term (:val message)
+        search-results (-> search-term search-amazon groom-results)
+        ;mocked-results (-> search-term search-amazon-mock)
+        ;search-results mocked-results
+        ]
+    (println "Sending search results to client")
+    (pprint/pprint search-results)
+    (put! out-channel (h/make-message :search-results search-results))
+    (println "Done!")))
 
-;; Type checking
-(defn has-type
-  [message type]
-  (= (keyword type) (:type message)))
+(defn heartbeat-handler
+  [message out-channel]
+  (println "Client heartbeat received")
+  (go 
+    (Thread/sleep 5000)
+    (>! out-channel (h/make-message :heartbeat "Sending server heartbeat"))))
 
-(defn untyped?
-  [message]
-  (not (:type message)))
-
-
-;; Message parsers
-(defn message-to-record
-  "Takes a raw message from websocket and produces a record."
-  [message]
-  (->> message :message read-string (apply ->Message)))
-
-(defn record-to-message
-  "Takes a record and produces a string suitable
-  for transfer over websocket."
-  [record]
-  (-> record vals vec pr-str))
-
-(defn map-hash-map [f m]
-  (into {} (for [[k v] m] [(f k) v])))
 
 ;; Handler
 (defn handler [req]
-  (let [headers (map-hash-map keyword (:headers req))]
+  (let [headers (h/string-keys-to-keywords keyword (:headers req))]
     (println "Received request from" (:x-forwarded-for headers))
     (println "User agent" (:user-agent headers))
     (println "Handler starting..."))
+  
   (with-channel 
     req ws-ch
+    
     (println "Setting up channels...")
-    (let [websocket-channel (map< message-to-record ws-ch)
-          websocket-channel (map> record-to-message websocket-channel)
-          [search-channel other-channel] (split #(has-type % :search) websocket-channel)]
+    (let [in-channel (map< h/message-to-record ws-ch)
+          out-channel (map> h/record-to-message ws-ch)
+          [search-channel other-channel]    (split #(h/has-type % :search)    in-channel)
+          [heartbeat-channel other-channel] (split #(h/has-type % :heartbeat) other-channel)]
       (println "Channels set up.")
       
-      (go-loop
-        []
-        (Thread/sleep 45000)
-        (>! websocket-channel (Message. :heartbeat "Server connection heartbeat!"))
-        (recur))
-      
-      (go-loop
-        []
-        (when-let [message (<! search-channel)]
-          (println message)
-          (println (str "Searching for '" (:val message) "'"))               
-          (let [search-term (:val message)
-                search-results (-> search-term search-amazon groom-results)
-                ;mocked-results (-> search-term search-amazon-mock)
-                ;search-results mocked-results
-                ]
-            (println "Sending search results to client")
-            (pprint/pprint search-results)
-            (>! websocket-channel (Message. :search-results search-results))
-            (println "Done!"))
-          (recur)))
-      
-      (go-loop
-        []
-        (when-let [message (<! other-channel)]               
-          (println "Got a message with unknown type!")
-          (println message)
-          (recur)))
-      )))
+      ;; Message routing loop 
+      (go-loop []
+               (let [[message channel] (alts! [search-channel
+                                               heartbeat-channel
+                                               other-channel])]
+                 (when message 
+                   (condp = channel
+                     search-channel    (search-handler message out-channel)
+                     heartbeat-channel (heartbeat-handler message out-channel)
+                     other-channel     (do (println "No handler defined for message type")
+                                         (pprint/pprint message)))
+                   (recur)))))))
 
 (defn -main
   [& args]
