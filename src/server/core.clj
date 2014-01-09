@@ -7,13 +7,13 @@
             [clojure.string :as string]
             [clojure.pprint :as pprint]
             [clj-amazon.product-advertising :as amazon-pa]
-            [clojure.core.async :refer [alts! split filter< map< map> <! <!! >! >!! put! close! go go-loop]]
+            [clojure.core.async :refer [alts! split filter< map< map> <! <!! >! >!! put! close! go go-loop timeout]]
             [server.helper :as helper :refer [? start-nstracker]]
             [ring.middleware.reload :as reload]
             [org.httpkit.server :as httpkit]))
 (defrecord Message [type val])
 
-(defn server-state (atom {:clients []}))
+(def server-state (atom {:clients []}))
 
 ;; Amazon stuff
 (def secret-key   "04CISiNrmOP6kH+0PmI6XVJ7tsBtO46wF2prNBhy")
