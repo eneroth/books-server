@@ -13,7 +13,9 @@
             [org.httpkit.server :as httpkit]))
 (defrecord Message [type val])
 
-;; Amazon IDs
+(defn server-state (atom {:clients []}))
+
+;; Amazon stuff
 (def secret-key   "04CISiNrmOP6kH+0PmI6XVJ7tsBtO46wF2prNBhy")
 (def associate-id "b944ad06744d953f704c6af472a274eee584813ae2b8a768b68277045da7178c")
 (def access-key   "AKIAJ3FTJEZNETDGEVNA")
@@ -41,6 +43,8 @@
         results
         (recur (dec num) (conj results (rand-int 100)))))))
 
+
+;; Message type based handlers
 (defn search-handler
   [message out-channel]
   (println message)
@@ -59,9 +63,8 @@
   [message out-channel]
   (println "Client heartbeat received")
   (go 
-    (Thread/sleep 5000)
+    (<! (timeout 5000))
     (>! out-channel (h/make-message :heartbeat "Sending server heartbeat"))))
-
 
 (defn unknown-handler
   [message out-channel]
@@ -69,7 +72,7 @@
     (println (str "No handler defined for message type '" message-type "'"))
     (pprint/pprint message)))
 
-;; Handler
+;; Websocket handler
 (defn handler [req]
   (let [headers (h/string-keys-to-keywords keyword (:headers req))]
     (println "Received request from" (:x-forwarded-for headers))
