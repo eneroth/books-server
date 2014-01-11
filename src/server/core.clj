@@ -50,9 +50,9 @@
   (println message)
   (println (str "Searching for '" (:val message) "'"))               
   (let [search-term (:val message)
-        search-results (-> search-term search-amazon groom-results)
-        ;mocked-results (-> search-term search-amazon-mock)
-        ;search-results mocked-results
+        ;search-results (-> search-term search-amazon groom-results)
+        mocked-results (-> search-term search-amazon-mock)
+        search-results mocked-results
         ]
     (println "Sending search results to client")
     (pprint/pprint search-results)
