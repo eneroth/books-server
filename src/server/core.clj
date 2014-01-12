@@ -29,9 +29,22 @@
                            :associate-tag associate-id
                            :condition "New")))
 
+(defn extract-data-from-result
+  [raw-search-result]
+  (let [title  (-> raw-search-result :item-atributes :title)
+        author (-> raw-search-result :item-atributes :author)
+        author (if (vector? author) author (vector author))
+        url    (-> raw-search-result :item-links first :url)]
+    {:title title
+     :author author
+     :url   url}))
+
 (defn groom-results
   [raw-search-results]
-  (map #(-> % :item-atributes :title) (:items raw-search-results)))
+  (let [results (:items raw-search-results)]
+    (doall (map extract-data-from-result results))))
+
+
 
 (defn search-amazon-mock
   [search-term]
