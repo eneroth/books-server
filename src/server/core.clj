@@ -74,34 +74,38 @@
 
 ;; Websocket handler
 (defn handler [req]
-  (let [headers (h/string-keys-to-keywords keyword (:headers req))]
-    (println "Received request from" (:x-forwarded-for headers))
+  (let [headers    (h/string-keys-to-keywords keyword (:headers req))
+        request-ip (:x-forwarded-for headers)]
+    (println "Received request from" request-ip)
     (println "User agent" (:user-agent headers))
-    (println "Handler starting..."))
-  
-  (with-channel 
-    req ws-ch
+    (println "Handler starting...")
     
-    (println "Setting up channels...")
-    (let [in-channel (map< h/message-to-record ws-ch)
-          out-channel (map> h/record-to-message ws-ch)
-          [search-channel other-channel]    (split #(h/has-type % :search)    in-channel)
-          [heartbeat-channel other-channel] (split #(h/has-type % :heartbeat) other-channel)]
-      (println "Channels set up.")
+    (with-channel 
+      req ws-ch
       
-      ;; Message routing loop 
-      (go-loop 
-        []
-        (let [[message channel] (alts! [search-channel
-                                        heartbeat-channel
-                                        other-channel])]
-          (when message 
-            (go 
-              (condp = channel
-                search-channel    (search-handler    message out-channel)
-                heartbeat-channel (heartbeat-handler message out-channel)
-                other-channel     (unknown-handler   message out-channel)))
-            (recur)))))))
+      (println "Setting up channels...")
+      (let [in-channel (map< h/message-to-record ws-ch)
+            out-channel (map> h/record-to-message ws-ch)
+            [search-channel other-channel]    (split #(h/has-type % :search)    in-channel)
+            [heartbeat-channel other-channel] (split #(h/has-type % :heartbeat) other-channel)]
+        (println "Channels set up.")
+        
+        ;; Message routing loop 
+        (go-loop 
+          []
+          (let [[message channel] (alts! [search-channel
+                                          heartbeat-channel
+                                          other-channel])]
+            (if message 
+              (do 
+                (go 
+                  (condp = channel
+                    search-channel    (search-handler    message out-channel)
+                    heartbeat-channel (heartbeat-handler message out-channel)
+                    other-channel     (unknown-handler   message out-channel)))
+                (recur))
+              (do 
+                (println "Connection from" request-ip "closed!")))))))))
 
 (defn -main
   [& args]
