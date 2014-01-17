@@ -3,6 +3,7 @@
   (:require [chord.http-kit :refer [with-channel]]
             [ring.middleware.reload :refer [wrap-reload]]
             [server.channel-helpers :as h]
+            [server.google-books :as gb]
             [clj-amazon.core :as amazon-core]
             [clojure.string :as string]
             [clojure.pprint :as pprint]
@@ -21,13 +22,17 @@
 (def access-key   "AKIAJ3FTJEZNETDGEVNA")
 
 (defn search-amazon
-  [search-term] 
-  (amazon-core/with-signer 
-    (access-key secret-key) 
+  [search-term]
+  (amazon-core/with-signer
+    (access-key secret-key)
     (amazon-pa/item-search :search-index "Books"
                            :keywords search-term
                            :associate-tag associate-id
                            :condition "New")))
+
+(defn search-google
+  [search-term]
+  (gb/search search-term))
 
 (defn extract-data-from-result
   [raw-search-result]
@@ -58,10 +63,10 @@
 
 
 ;; Message type based handlers
-(defn search-handler
+(defn amazon-handler
   [message out-channel]
   (println message)
-  (println (str "Searching for '" (:val message) "'"))               
+  (println (str "Searching for '" (:val message) "'"))
   (let [search-term (:val message)
         search-results (-> search-term search-amazon groom-results)
         ;mocked-results (-> search-term search-amazon-mock)
@@ -69,13 +74,24 @@
         ]
     (println "Sending search results to client")
     (pprint/pprint search-results)
-    (put! out-channel (h/make-message :search-results search-results))
+    (put! out-channel (h/make-message :amazon-results search-results))
+    (println "Done!")))
+
+(defn google-handler
+  [message out-channel]
+  (println message)
+  (println (str "Searching for '" (:val message) "'"))
+  (let [search-term (:val message)
+        search-results (-> search-term search-google)]
+    (println "Sending search results to client")
+    (pprint/pprint search-results)
+    (put! out-channel (h/make-message :google-results search-results))
     (println "Done!")))
 
 (defn heartbeat-handler
   [message out-channel]
   (println "Client heartbeat received")
-  (go 
+  (go
     (<! (timeout 5000))
     (>! out-channel (h/make-message :heartbeat "Sending server heartbeat"))))
 
@@ -92,32 +108,35 @@
     (println "Received request from" request-ip)
     (println "User agent" (:user-agent headers))
     (println "Handler starting...")
-    
-    (with-channel 
+
+    (with-channel
       req ws-ch
-      
+
       (println "Setting up channels...")
       (let [in-channel (map< h/message-to-record ws-ch)
             out-channel (map> h/record-to-message ws-ch)
-            [search-channel other-channel]    (split #(h/has-type % :search)    in-channel)
-            [heartbeat-channel other-channel] (split #(h/has-type % :heartbeat) other-channel)]
+            [amazon-search-channel other-channel] (split #(h/has-type % :search-amazon) in-channel)
+            [google-search-channel other-channel] (split #(h/has-type % :search-google) other-channel)
+            [heartbeat-channel other-channel]     (split #(h/has-type % :heartbeat) other-channel)]
         (println "Channels set up.")
-        
-        ;; Message routing loop 
-        (go-loop 
+
+        ;; Message routing loop
+        (go-loop
           []
-          (let [[message channel] (alts! [search-channel
+          (let [[message channel] (alts! [amazon-search-channel
+                                          google-search-channel
                                           heartbeat-channel
                                           other-channel])]
-            (if message 
-              (do 
-                (go 
+            (if message
+              (do
+                (go
                   (condp = channel
-                    search-channel    (search-handler    message out-channel)
-                    heartbeat-channel (heartbeat-handler message out-channel)
-                    other-channel     (unknown-handler   message out-channel)))
+                    amazon-search-channel (amazon-handler    message out-channel)
+                    google-search-channel (google-handler    message out-channel)
+                    heartbeat-channel     (heartbeat-handler message out-channel)
+                    other-channel         (unknown-handler   message out-channel)))
                 (recur))
-              (do 
+              (do
                 (println "Connection from" request-ip "closed!")))))))))
 
 (defn -main
