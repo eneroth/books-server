@@ -83,8 +83,8 @@
   (println (str "Searching for '" (:val message) "'"))
   (let [search-term (:val message)
         search-results (-> search-term search-google)]
+    (println "Found" (count search-results) "search results")
     (println "Sending search results to client")
-    (pprint/pprint search-results)
     (put! out-channel (h/make-message :google-results search-results))
     (println "Done!")))
 
