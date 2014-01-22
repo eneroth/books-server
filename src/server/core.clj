@@ -32,7 +32,10 @@
 
 (defn search-google
   [search-term]
-  (gb/search search-term))
+  (let [query {:query search-term
+               :max-results 10
+               :print-type "books"}]
+    (gb/search query)))
 
 (defn extract-data-from-result
   [raw-search-result]
@@ -104,14 +107,14 @@
 ;; Websocket handler
 (defn handler [req]
   (let [headers    (h/string-keys-to-keywords keyword (:headers req))
-        request-ip (:x-forwarded-for headers)]
-    (println "Received request from" request-ip)
+        user-ip (:x-forwarded-for headers)]
+    (println "Received request from" user-ip)
     (println "User agent" (:user-agent headers))
     (println "Handler starting...")
-
+    
     (with-channel
       req ws-ch
-
+      
       (println "Setting up channels...")
       (let [in-channel (map< h/message-to-record ws-ch)
             out-channel (map> h/record-to-message ws-ch)
@@ -119,7 +122,7 @@
             [google-search-channel other-channel] (split #(h/has-type % :search-google) other-channel)
             [heartbeat-channel other-channel]     (split #(h/has-type % :heartbeat) other-channel)]
         (println "Channels set up.")
-
+        
         ;; Message routing loop
         (go-loop
           []
@@ -137,7 +140,7 @@
                     other-channel         (unknown-handler   message out-channel)))
                 (recur))
               (do
-                (println "Connection from" request-ip "closed!")))))))))
+                (println "Connection from" user-ip "closed!")))))))))
 
 (defn -main
   [& args]

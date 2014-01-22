@@ -32,19 +32,16 @@
 
 ;; Functions
 (defn construct-url
+  "Inserts the API-key into the query map, makes the
+  search string web safe, and then converts it to a
+  string."
   [query-map]
-  (let [query-strings (map #(str ((key %) query-params) "=" (val %)) query-map)
-        query-vector  (interpose "&" query-strings )
-        query-string  (apply str query-vector)]
+  (let [with-api           (assoc query-map :key api-key)
+        web-safe-query     (update-in with-api [:query] url-encode)
+        query-vector       (map #(str ((key %) query-params) "=" (val %)) web-safe-query)
+        interposed-vector  (interpose "&" query-vector)
+        query-string       (apply str interposed-vector)]
     (str base-url "?" query-string)))
-
-(defn search-url
-  [search-string]
-  (let [query {:query (url-encode search-string)
-               :max-results 10
-               :print-type "books"
-               :key api-key}]
-    (construct-url query)))
 
 (defn groom
   [results]
@@ -53,8 +50,10 @@
     (map #(select-keys % [:title :authors :info-link]) volumes)))
 
 (defn search
-  [search-term]
-  (let [{:keys [status headers body error] :as resp} @(http/get (search-url search-term))]
+  [query]
+  (let [search-string (construct-url query)
+        a (println search-string)
+        {:keys [status headers body error] :as resp} @(http/get search-string)]
     (if error
       (println "Failed, exception: " error)
       (do 
